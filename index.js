@@ -85,7 +85,7 @@ const displayError = message => {
 
 const calculatePossibleValues = (grid) => {
   let shouldReflow = false;
-  function stage1(grid) {
+  function stage1(grid, rerun=true) {
     for (let i = 0; i < grid.length; i++) {
       for (let j = 0; j < grid[i].length; j++) {
         const cell = grid[i][j];
@@ -102,22 +102,92 @@ const calculatePossibleValues = (grid) => {
         }
       }
     }
-
     if(shouldReflow) {
       shouldReflow = false;
       stage1(grid);
     } else {
-      stage2(grid);
+      stage2(grid, false);
     }
   }
   stage1(grid);
 
   function stage2(grid) {
+
+    /* stage1(grid, false) */
     let setVal = false;
     for (let i = 0; i < grid.length; i++) {
       const emptyCells = _getEmptyCellsInRow(i);
       const possibleValues = [];
       emptyCells.forEach(cell => {
+        cell.possibleValues = cell.possibleValues.filter(value => {
+          return (_canNumberBeInBlock(cell, value) && _canNumberBeInColumn(cell, value) && _canNumberBeInRow(cell, value));
+        })
+        possibleValues.push(...cell.possibleValues);
+      });
+      emptyCells.forEach(cell => {
+        cell.possibleValues.forEach(value => {
+          const temp = possibleValues.filter(val => val === value);
+          if(temp.length === 1) {
+            setVal = true;
+            cell.setValue(value, 'blue');
+          }
+        })
+      })
+    }
+
+
+    let count = 0;
+    let currentBlock = _getBlockCoordinates(grid[0][0]);
+    do {
+      const possibleValues = [];
+      const emptyCells = [];
+      for(let i = currentBlock[0][0]; i < (currentBlock[0][0] + 3); i++) {
+        for(let j = currentBlock[0][1]; j < (currentBlock[0][1] + 3); j++) {
+          const cell = grid[i][j];
+          if (cell.value === null) {
+            emptyCells.push(cell);
+            cell.possibleValues = cell.possibleValues.filter(value => {
+              return (_canNumberBeInBlock(cell, value) && _canNumberBeInColumn(cell, value) && _canNumberBeInRow(cell, value));
+            })
+            possibleValues.push(...cell.possibleValues);
+          }
+        }
+      }
+
+      const possibleValuesSet = new Set(possibleValues);
+      possibleValuesSet.forEach(value => {
+        const filtered = possibleValues.filter(val => val === value);
+        if(filtered.length === 1) {
+          setVal = true;
+          const cell = emptyCells.find(cl => {
+            return(cl.possibleValues.includes(filtered[0]));
+          })
+
+          cell.setValue(value, 'blue');
+        }
+      });
+
+      count++;
+      if(count < 3) {
+        currentBlock = _getBlockCoordinates(grid[0][(count % 3) * 3]);
+      } else if(count < 6) {
+        currentBlock = _getBlockCoordinates(grid[3][(count % 3) * 3]);
+      } else {
+        currentBlock = _getBlockCoordinates(grid[6][(count % 3) * 3]);
+      }
+
+    }
+    while(count < 9);
+
+    for (let i = 0; i < grid.length; i++) {
+      const emptyCells = _getEmptyCellsInCol(i);
+      const possibleValues = [];
+      // const setted =
+      emptyCells.forEach(cell => {
+        debugger;
+        cell.possibleValues = cell.possibleValues.filter(value => {
+          return (_canNumberBeInBlock(cell, value) && _canNumberBeInColumn(cell, value) && _canNumberBeInRow(cell, value));
+        })
         possibleValues.push(...cell.possibleValues);
       });
       emptyCells.forEach(cell => {
@@ -131,7 +201,6 @@ const calculatePossibleValues = (grid) => {
       })
     }
     if(setVal) {
-
       stage1(grid)
     }
   }
@@ -192,6 +261,18 @@ const calculatePossibleValues = (grid) => {
     }
     return emptyCells
   }
+  function _getEmptyCellsInCol(col) {
+    const emptyCells = [];
+    for (let i = 0; i < 9; i++) {
+      const element = grid[i][col];
+      if(element.value === null) {
+        emptyCells.push(element);
+      }
+    }
+
+    return emptyCells;
+  }
+
   function _getEmptyCellsInBlock(blockCoordinates) {
     const emptyCells = [];
     for(let i = blockCoordinates[0][0]; i <= blockCoordinates[1][0]; i++) {
